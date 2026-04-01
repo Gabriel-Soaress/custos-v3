@@ -191,6 +191,10 @@ app.post('/api/presets', authenticate, checkSubscription, async (req, res) => {
 app.delete('/api/presets/:id', authenticate, checkSubscription, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
+    // Deleta os itens do modelo primeiro (garante exclusão se o cascade do banco falhar)
+    await prisma.modeloItem.deleteMany({ where: { modelo_id: id } });
+    
+    // Agora deleta o modelo (vinculado ao usuario para segurança)
     await prisma.modeloPreset.deleteMany({
       where: { id, usuario_id: req.usuario_id }
     });
@@ -239,6 +243,10 @@ app.post('/api/produtos', authenticate, checkSubscription, async (req, res) => {
 app.delete('/api/produtos/:id', authenticate, checkSubscription, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
+    // Deleta os itens de custo primeiro
+    await prisma.produtoItemCusto.deleteMany({ where: { produto_id: id } });
+    
+    // Deleta o produto
     await prisma.produto.deleteMany({
       where: { id, usuario_id: req.usuario_id }
     });

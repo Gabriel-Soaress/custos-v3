@@ -85,9 +85,9 @@
 
 .btn-mini {
     flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px;
-    padding: 10px 15px; background: #ffffff; border: 1px solid #cbd5e1;
+    padding: 10px 10px; background: #ffffff; border: 1px solid #cbd5e1;
     border-radius: 8px; font-weight: 600; color: #475569; cursor: pointer;
-    font-size: 0.9rem; transition: all 0.2s; white-space: nowrap;
+    font-size: 0.85rem; transition: all 0.2s; /* Removido nowrap para evitar overflow */
 }
 
 .v-separator { width: 1px; background: #e2e8f0; margin: 4px 0; }
@@ -232,7 +232,7 @@
     
     .presetsGroup, .cloudGroup, .fileGroup { 
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(2, minmax(0, 1fr)); /* Garante que os itens encolham se necessário */
         gap: 10px;
         width: 100%;
         flex: none;
