@@ -188,6 +188,18 @@ app.post('/api/presets', authenticate, checkSubscription, async (req, res) => {
   }
 });
 
+app.delete('/api/presets/:id', authenticate, checkSubscription, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    await prisma.modeloPreset.deleteMany({
+      where: { id, usuario_id: req.usuario_id }
+    });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao deletar modelo' });
+  }
+});
+
 // === ROTAS DE PRODUTOS ===
 app.get('/api/produtos', authenticate, checkSubscription, async (req, res) => {
   try {
@@ -221,6 +233,18 @@ app.post('/api/produtos', authenticate, checkSubscription, async (req, res) => {
     res.json({ success: true, id: novo.id });
   } catch (error) {
     res.status(500).json({ error: 'Erro ao salvar produto' });
+  }
+});
+
+app.delete('/api/produtos/:id', authenticate, checkSubscription, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    await prisma.produto.deleteMany({
+      where: { id, usuario_id: req.usuario_id }
+    });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao deletar produto' });
   }
 });
 

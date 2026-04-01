@@ -251,14 +251,18 @@
     color: var(--text-main);
 }
 
-/* RECENT TABLE */
+/* RECENT TABLE - Scroll Horizontal Apenas na Tabela se Necessário */
 .tableWrapper {
     flex: 1;
+    overflow-x: auto; /* Permite scroll lateral apenas se a tabela exceder o card */
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
 }
 
 .recentTable {
     width: 100%;
     border-collapse: collapse;
+    min-width: 400px; /* Impede que as colunas se esmaguem e fiquem ilegíveis */
 }
 
 .recentTable th {
@@ -346,6 +350,7 @@
 }
 
 @media (max-width: 640px) {
+    .container { width: 95%; padding: 1.5rem 0; } /* Mais espaço para o conteúdo central */
     .metricsBoard { grid-template-columns: 1fr; }
     .navbar { padding: 0 1rem; height: 60px; }
     .logoText { font-size: 1.2rem; }

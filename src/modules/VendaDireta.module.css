@@ -56,24 +56,25 @@
     border-bottom: 2px solid #f8fafc; padding-bottom: 12px;
 }
 
-/* Config Bar Atualizada para Grid (Simetria Absoluta no Desktop) */
+/* Config Bar Atualizada para Ser Flexível (Evita Scroll Horizontal) */
 .config-bar {
-    display: grid;
-    grid-template-columns: 2fr auto 0.8fr auto 2fr auto 1.5fr; /* Colunas fixas e proporcionais */
+    display: flex;
+    flex-wrap: wrap; /* Permite que os itens desçam se não houver espaço */
     gap: 15px;
     margin-bottom: 25px;
     background: #f8fafc;
     padding: 15px 20px;
     border-radius: 12px;
     border: 1px solid #e2e8f0;
-    align-items: stretch; /* Garante que todos os grupos tenham a mesma altura */
+    align-items: stretch;
 }
 
 .presetsGroup, .fileGroup, .taxGroup, .cloudGroup {
     display: flex;
     gap: 10px;
     align-items: stretch;
-    width: 100%;
+    flex: 1; /* Distribui espaço disponível */
+    min-width: 250px; /* Impede que fiquem muito pequenos no desktop largo */
 }
 
 .select-preset {
@@ -203,6 +204,15 @@
 .btn-danger:hover { background: #fef2f2; color: #dc2626; border-color: #fca5a5; transform: translateY(-1px); }
 
 /* --- RESPONSIVIDADE --- */
+@media (max-width: 1100px) {
+    .config-bar {
+        padding: 10px;
+    }
+    .presetsGroup, .fileGroup, .taxGroup, .cloudGroup {
+        min-width: calc(50% - 15px); /* Em telas médias, fica 2 por linha */
+    }
+}
+
 @media (max-width: 992px) {
     .erp-grid { grid-template-columns: 1fr; }
     .sticky-panel { position: static; margin-top: 10px; }
