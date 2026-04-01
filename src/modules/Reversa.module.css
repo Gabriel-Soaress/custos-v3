@@ -1,0 +1,133 @@
+/* src/modules/Reversa.module.css */
+
+.body {
+    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    background-color: #f8fafc;
+    color: #0f172a;
+    margin: 0;
+    padding: 25px;
+    min-height: 100vh;
+}
+
+.nav-container { text-align: center; margin-bottom: 25px; display: flex; justify-content: center; }
+.btn-voltar {
+    background-color: #ffffff; color: #475569; text-decoration: none; padding: 10px 20px;
+    border-radius: 8px; font-weight: 600; font-size: 0.95rem; border: 1px solid #e2e8f0;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.btn-voltar:hover { background-color: #f8fafc; color: #0f172a; transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border-color: #cbd5e1; }
+
+.container {
+    width: 100%; max-width: 650px; margin: 0 auto; background: #ffffff;
+    padding: 35px; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+    box-sizing: border-box; border: 1px solid #f1f5f9;
+}
+.h1 { text-align: center; color: #1e293b; font-size: 1.8rem; margin-bottom: 30px; font-weight: 800; letter-spacing: -0.02em; }
+
+/* SELETOR DE MARKETPLACE */
+.marketplace-selector {
+    margin-bottom: 25px; padding: 20px; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0;
+}
+.label-select { display: block; font-weight: 800; color: #475569; margin-bottom: 12px; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.select-mkt {
+    width: 100%; padding: 14px 18px; border-radius: 8px; border: 1px solid #cbd5e1;
+    font-size: 1.05rem; background: #ffffff; outline: none; transition: all 0.2s;
+    font-weight: 600; color: #0f172a; box-shadow: inset 0 2px 4px 0 rgba(0,0,0,0.02);
+    appearance: none; -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2720%27%20height%3D%2720%27%20viewBox%3D%270%200%2024%2024%27%20fill%3D%27none%27%20stroke%3D%27%2364748b%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Cpolyline%20points%3D%276%209%2012%2015%2018%209%27%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E");
+    background-repeat: no-repeat; background-position: right 14px center; padding-right: 40px;
+}
+.select-mkt:focus { border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124,58,237,0.1) inset; }
+
+/* INPUTS */
+.form-group { margin-bottom: 20px; }
+.label { display: block; font-weight: 700; margin-bottom: 8px; color: #334155; font-size: 0.95rem; }
+.input {
+    width: 100%; padding: 15px 18px; border: 1px solid #cbd5e1; border-radius: 10px;
+    font-size: 1.2rem; box-sizing: border-box; transition: all 0.2s; font-weight: 600; color: #0f172a;
+    box-shadow: inset 0 2px 4px 0 rgba(0,0,0,0.02);
+}
+.input:focus { border-color: #7c3aed; outline: none; box-shadow: 0 0 0 3px rgba(124,58,237,0.1); }
+.input::placeholder { font-weight: 500; color: #94a3b8; }
+
+/* ÁREA DE TAXAS (CHECKBOXES) */
+.taxas-area {
+    background: #ffffff; border: 1px dashed #cbd5e1; border-radius: 12px; padding: 20px;
+    margin: 25px 0;
+}
+.taxas-title { font-size: 0.9rem; font-weight: 800; color: #475569; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+.checkbox-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 0; border-bottom: 1px dashed #e2e8f0;
+}
+.checkbox-row:last-child { border-bottom: none; }
+.checkbox-label { display: flex; align-items: center; gap: 12px; cursor: pointer; color: #334155; font-weight: 600; font-size: 1rem; }
+.checkbox-input { width: 22px; height: 22px; accent-color: #7c3aed; cursor: pointer; transition: transform 0.1s; border-radius: 4px; }
+.checkbox-input:hover { transform: scale(1.05); }
+
+/* LUCRO EMBUTIDO */
+.embedded-profit-area {
+    background: #f0fdf4; border: 1px solid #bbf7d0; padding: 20px; border-radius: 12px; margin-bottom: 25px;
+}
+.embedded-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; cursor: pointer; }
+
+/* BOTÕES */
+.btn-calc {
+    background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%); color: white; width: 100%; padding: 18px; border: none;
+    border-radius: 10px; font-weight: 800; font-size: 1.15rem; cursor: pointer; letter-spacing: 0.02em;
+    box-shadow: 0 10px 15px -3px rgba(124, 58, 237, 0.3); transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.btn-calc:hover { transform: translateY(-3px); box-shadow: 0 14px 25px -5px rgba(124, 58, 237, 0.4); }
+
+.btn-clear {
+    background: #ffffff; color: #64748b; width: 100%; padding: 15px; border: 1px dashed #cbd5e1;
+    border-radius: 10px; font-weight: 700; font-size: 1rem; cursor: pointer; margin-top: 15px;
+    transition: all 0.2s;
+}
+.btn-clear:hover { background: #f1f5f9; color: #ef4444; border-color: #fca5a5; border-style: solid; }
+
+/* RESULTADOS */
+.resultado {
+    margin-top: 40px; background: #ffffff; border: 1px solid #e2e8f0;
+    border-radius: 16px; padding: 25px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+}
+.res-line { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 1.05rem; font-weight: 500; color: #334155; }
+.res-divider { border-bottom: 1px dashed #e2e8f0; margin: 15px 0; }
+.red-text { color: #ef4444; font-weight: 600; }
+
+.final-card {
+    margin-top: 20px; padding: 25px; border-radius: 12px; text-align: center;
+    display: flex; flex-direction: column; gap: 8px; border: 1px solid transparent; background: #f8fafc;
+}
+.final-label { font-size: 1rem; font-weight: 700; opacity: 0.9; text-transform: uppercase; letter-spacing: 0.05em; }
+.final-value { font-size: 2.75rem; font-weight: 900; letter-spacing: -0.03em; }
+
+@media (max-width: 600px) {
+    .container { padding: 20px; }
+    .input { font-size: 1.1rem; padding: 12px; }
+    .btn-calc { font-size: 1.05rem; padding: 15px; }
+}
+
+@media print {
+    .no-print, .nav-container, .marketplace-selector, .btn-calc, .btn-clear { display: none !important; }
+    .body { background: white !important; padding: 0 !important; margin: 0 !important; }
+    .container { box-shadow: none !important; border: none !important; width: 100% !important; max-width: 100% !important; padding: 0 !important; }
+    
+    .resultado { border: 2px solid #000 !important; border-radius: 0 !important; box-shadow: none !important; margin-top: 10px !important; padding: 20px !important; page-break-inside: avoid; }
+    .res-line { color: #000 !important; border-bottom: 1px solid #ddd !important; padding: 5px 0 !important; margin-bottom: 0 !important; font-size: 1.1rem !important; }
+    .res-divider { display: none !important; }
+    .red-text { color: #000 !important; font-weight: bold !important; }
+    
+    .final-card { background: transparent !important; border: 3px solid #000 !important; border-radius: 0 !important; padding: 20px !important; margin-top: 30px !important; color: #000 !important; }
+    .final-label { color: #000 !important; font-size: 1.2rem !important; }
+    .final-value { color: #000 !important; font-size: 3rem !important; }
+    
+    .input { border: 0 !important; border-bottom: 1px solid #000 !important; border-radius: 0 !important; font-size: 1.5rem !important; padding: 5px 0 !important; background: transparent !important; color: #000 !important; }
+    .label { color: #000 !important; font-size: 1rem !important; }
+    
+    .taxas-area { border: 1px solid #000 !important; background: transparent !important; border-radius: 0 !important; }
+    .checkbox-row { border-bottom: 1px solid #000 !important; }
+    .checkbox-label { color: #000 !important; }
+}

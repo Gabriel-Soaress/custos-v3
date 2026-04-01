@@ -1,0 +1,104 @@
+// Prisma schema file
+// Database URL is referenced from .env
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Usuario {
+  id                  Int                   @id @default(autoincrement())
+  email               String                @unique
+  senha_hash          String
+  stripe_customer_id  String?               @unique
+  stripe_subscription_id String?            @unique
+  status_assinatura   String                @default("inactive")
+  criado_em           DateTime              @default(now())
+  
+  produtos            Produto[]
+  modelos_presets     ModeloPreset[]
+  marketplaces_config MarketplaceConfig[]
+
+  @@map("usuarios")
+}
+
+model Produto {
+  id                   Int                   @id @default(autoincrement())
+  usuario_id           Int
+  nome                 String                @db.VarChar(150)
+  custo_base           Decimal               @default(0.00) @db.Decimal(10, 2)
+  lucro_desejado       Decimal               @default(0.00) @db.Decimal(10, 2)
+  imposto_padrao       Decimal               @default(0.00) @db.Decimal(5, 2)
+  criado_em            DateTime              @default(now())
+  atualizado_em        DateTime              @default(now()) @updatedAt
+  
+  usuario              Usuario               @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+  itens_custo          ProdutoItemCusto[]
+
+  @@index([usuario_id])
+  @@index([criado_em(sort: Desc)])
+  @@map("produtos")
+}
+
+model ProdutoItemCusto {
+  id          Int      @id @default(autoincrement())
+  produto_id  Int
+  nome        String   @db.VarChar(100)
+  valor       Decimal  @default(0.00) @db.Decimal(10, 2)
+  unidade     String   @db.VarChar(2) // 'R$' ou '%'
+  ordem       Int      @default(0)
+  
+  produto     Produto  @relation(fields: [produto_id], references: [id], onDelete: Cascade)
+
+  @@index([produto_id, ordem])
+  @@map("produtos_itens_custo")
+}
+
+model ModeloPreset {
+  id          Int      @id @default(autoincrement())
+  usuario_id  Int
+  nome_modelo String   @db.VarChar(100)
+  criado_em   DateTime @default(now())
+  
+  usuario     Usuario  @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+  itens       ModeloItem[]
+
+  @@index([usuario_id])
+  @@map("modelos_presets")
+}
+
+model ModeloItem {
+  id          Int          @id @default(autoincrement())
+  modelo_id   Int
+  nome_item   String       @db.VarChar(100)
+  
+  modelo      ModeloPreset @relation(fields: [modelo_id], references: [id], onDelete: Cascade)
+
+  @@index([modelo_id])
+  @@map("modelos_itens")
+}
+
+model MarketplaceConfig {
+  id              Int      @id @default(autoincrement())
+  usuario_id      Int
+  nome            String   @db.VarChar(100)
+  cor_indicador   String?  @db.VarChar(7)
+  taxa_comissao   Decimal  @default(0.00) @db.Decimal(5, 4)
+  taxa_fixa       Decimal  @default(0.00) @db.Decimal(10, 2)
+  taxa_ads        Decimal  @default(0.00) @db.Decimal(10, 4)
+  unidade_ads     String   @db.VarChar(2) // 'R$' ou '%'
+  taxa_extra      Decimal  @default(0.00) @db.Decimal(10, 4)
+  unidade_extra   String   @db.VarChar(2) // 'R$' ou '%'
+  imposto         Decimal  @default(0.00) @db.Decimal(5, 4)
+  unidade_imposto String   @db.VarChar(2) // 'R$' ou '%'
+  atualizado_em   DateTime @default(now()) @updatedAt
+  
+  usuario         Usuario  @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+
+  @@index([usuario_id])
+  @@map("marketplaces_config")
+}

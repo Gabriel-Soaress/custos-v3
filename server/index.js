@@ -1,0 +1,393 @@
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { PrismaClient } from '@prisma/client';
+import Stripe from 'stripe';
+
+dotenv.config();
+
+const app = express();
+const prisma = new PrismaClient();
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+app.use(cors());
+
+// Middleware para Webhook do Stripe (precisa do body bruto antes do express.json())
+app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  let event;
+
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+  } catch (err) {
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  // Lógica de Ativação/Cancelamento
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object;
+    const customerId = session.customer;
+    const subscriptionId = session.subscription;
+    const userEmail = session.customer_details.email;
+
+    await prisma.usuario.update({
+      where: { email: userEmail },
+      data: {
+        stripe_customer_id: customerId,
+        stripe_subscription_id: subscriptionId,
+        status_assinatura: 'active'
+      }
+    });
+    console.log(`Usuário ${userEmail} ativado via Stripe.`);
+  }
+
+  if (event.type === 'customer.subscription.deleted') {
+    const subscription = event.data.object;
+    await prisma.usuario.update({
+      where: { stripe_subscription_id: subscription.id },
+      data: { status_assinatura: 'canceled' }
+    });
+  }
+
+  res.json({ received: true });
+});
+
+// Middleware padrão para o restante das rotas
+app.use(express.json());
+
+const JWT_SECRET = process.env.JWT_SECRET || 'secret';
+
+// === MIDDLEWARES ===
+const authenticate = (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'Token não fornecido' });
+  try {
+    const decodificado = jwt.verify(token, JWT_SECRET);
+    req.usuario_id = decodificado.id;
+    next();
+  } catch (err) {
+    res.status(401).json({ error: 'Token inválido' });
+  }
+};
+
+// Middleware para verificar assinatura ativa
+const checkSubscription = async (req, res, next) => {
+  const usuario = await prisma.usuario.findUnique({ where: { id: req.usuario_id } });
+  if (usuario?.status_assinatura !== 'active') {
+    return res.status(403).json({ error: 'Assinatura pendente ou inativa no servidor', needsPayment: true });
+  }
+  next();
+};
+
+// === ROTAS AUTENTICAÇÃO & CORE ===
+app.post('/api/auth/signup', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const existente = await prisma.usuario.findUnique({ where: { email } });
+    if (existente) return res.status(400).json({ error: 'Email já cadastrado' });
+
+    const senha_hash = await bcrypt.hash(password, 10);
+    
+    // Cria o usuário como inativo primeiro
+    const usuario = await prisma.usuario.create({
+      data: { email, senha_hash, status_assinatura: 'inactive' }
+    });
+
+    // Cria a Checkout Session do Stripe (Preço R$ 34,90 configurado anteriormente)
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      customer_email: email,
+      line_items: [{ price: 'price_1TH6z3KH8XvYCkZhonElPuR3', quantity: 1 }],
+      mode: 'subscription',
+      success_url: `${process.env.CLIENT_URL}/dashboard?checkout=success`,
+      cancel_url: `${process.env.CLIENT_URL}/signup?checkout=cancel`,
+    });
+
+    res.json({ sessionUrl: session.url });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao iniciar cadastro/pagamento' });
+  }
+});
+
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const usuario = await prisma.usuario.findUnique({ where: { email } });
+    
+    if (!usuario) return res.status(404).json({ error: 'Usuário não encontrado' });
+
+    const validSenha = await bcrypt.compare(password, usuario.senha_hash);
+    if (!validSenha) return res.status(401).json({ error: 'Senha incorreta' });
+
+    const token = jwt.sign({ 
+      id: usuario.id, 
+      status: usuario.status_assinatura 
+    }, JWT_SECRET, { expiresIn: '7d' });
+
+    res.json({ 
+      token, 
+      email: usuario.email, 
+      status: usuario.status_assinatura 
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro no login' });
+  }
+});
+
+// === ROTAS DE MARKETPLACES (Protegidas por Login e Assinatura) ===
+app.get('/api/marketplaces', authenticate, checkSubscription, async (req, res) => {
+  try {
+    let marketplaces = await prisma.marketplaceConfig.findMany({
+      where: { usuario_id: req.usuario_id }
+    });
+    
+    // Mapear para camelCase para o React
+    const formatado = marketplaces.map(m => ({
+      id: m.id,
+      nome: m.nome,
+      cor: m.cor_indicador,
+      taxaComissao: Number(m.taxa_comissao),
+      taxaFixa: Number(m.taxa_fixa),
+      taxaAds: Number(m.taxa_ads),
+      unidadeAds: m.unidade_ads,
+      taxaExtra: Number(m.taxa_extra),
+      unidadeExtra: m.unidade_extra,
+      imposto: Number(m.imposto),
+      unidadeImposto: m.unidade_imposto
+    }));
+    
+    res.json(formatado);
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao buscar configurações das lojas' });
+  }
+});
+
+app.post('/api/marketplaces', authenticate, checkSubscription, async (req, res) => {
+  try {
+    const configs = req.body; // Array com as config do MarketplaceTemp do Frontend
+    // Para simplificar: deleta antigos do usuario e insere novos //
+    await prisma.marketplaceConfig.deleteMany({
+      where: { usuario_id: req.usuario_id }
+    });
+
+    const inseridos = await prisma.marketplaceConfig.createMany({
+      data: configs.map(c => ({
+        usuario_id: req.usuario_id,
+        nome: c.nome,
+        cor_indicador: c.cor,
+        taxa_comissao: c.taxaComissao || 0,
+        taxa_fixa: c.taxaFixa || 0,
+        taxa_ads: c.taxaAds || 0,
+        unidade_ads: c.unidadeAds,
+        taxa_extra: c.taxaExtra || 0,
+        unidade_extra: c.unidadeExtra,
+        imposto: c.imposto || 0,
+        unidade_imposto: c.unidadeImposto || '%'
+      }))
+    });
+    
+    res.json({ success: true, count: inseridos.count });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao salvar marketplaces', detalhes: error.message });
+  }
+});
+// === ROTAS DE PRESETS (Modelos) ===
+app.get('/api/presets', authenticate, checkSubscription, async (req, res) => {
+  try {
+    const presets = await prisma.modeloPreset.findMany({
+      where: { usuario_id: req.usuario_id },
+      include: { itens: true }
+    });
+    const formatado = presets.map(p => ({
+      id: p.id,
+      nome: p.nome_modelo,
+      itens: p.itens.map(i => i.nome_item)
+    }));
+    res.json(formatado);
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao buscar modelos' });
+  }
+});
+
+app.post('/api/presets', authenticate, checkSubscription, async (req, res) => {
+  try {
+    const { id, nome, itens } = req.body;
+    
+    if (id) {
+       // Se tem ID, é uma edição
+       // Apaga itens antigos
+       const presetExistente = await prisma.modeloPreset.findFirst({
+          where: { id: parseInt(id), usuario_id: req.usuario_id }
+       });
+       
+       if(!presetExistente) return res.status(404).json({error: 'Modelo não existe'});
+       
+       await prisma.modeloItem.deleteMany({ where: { modelo_id: parseInt(id) }});
+       
+       const atualizado = await prisma.modeloPreset.update({
+          where: { id: parseInt(id) },
+          data: {
+              nome_modelo: nome,
+              itens: {
+                  create: itens.map(i => ({ nome_item: i }))
+              }
+          },
+          include: { itens: true }
+       });
+       return res.json({ id: atualizado.id, nome: atualizado.nome_modelo, itens: atualizado.itens.map(i => i.nome_item) });
+    }
+
+    // Criar novo modelo
+    const novo = await prisma.modeloPreset.create({
+      data: {
+        usuario_id: req.usuario_id,
+        nome_modelo: nome,
+        itens: {
+          create: itens.map(i => ({ nome_item: i }))
+        }
+      },
+      include: { itens: true }
+    });
+    res.json({ id: novo.id, nome: novo.nome_modelo, itens: novo.itens.map(i => i.nome_item) });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao criar ou atualizar modelo' });
+  }
+});
+
+app.delete('/api/presets/:id', authenticate, checkSubscription, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    await prisma.modeloPreset.deleteMany({
+      where: { id, usuario_id: req.usuario_id }
+    });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao deletar modelo' });
+  }
+});
+
+// === ROTAS DE PRODUTOS (Venda Direta) ===
+app.get('/api/produtos', authenticate, checkSubscription, async (req, res) => {
+  try {
+    const produtos = await prisma.produto.findMany({
+      where: { usuario_id: req.usuario_id },
+      include: { itens_custo: { orderBy: { ordem: 'asc' } } },
+      orderBy: { atualizado_em: 'desc' }
+    });
+    
+    const formatado = produtos.map(p => ({
+      id: p.id,
+      nome: p.nome,
+      imposto: Number(p.imposto_padrao),
+      itens: p.itens_custo.map(i => ({
+        id: i.id,
+        nome: i.nome,
+        valor: Number(i.valor),
+        unidade: i.unidade
+      }))
+    }));
+    res.json(formatado);
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao buscar produtos' });
+  }
+});
+
+app.post('/api/produtos', authenticate, checkSubscription, async (req, res) => {
+  try {
+    const { nome, imposto, itens } = req.body;
+    
+    const novo = await prisma.produto.create({
+      data: {
+        usuario_id: req.usuario_id,
+        nome: nome || 'Produto sem nome',
+        imposto_padrao: parseFloat(imposto) || 0,
+        itens_custo: {
+          create: itens.map((i, index) => ({
+            nome: i.nome || '',
+            valor: parseFloat(i.valor) || 0,
+            unidade: i.unidade || 'R$',
+            ordem: index
+          }))
+        }
+      }
+    });
+    res.json({ success: true, id: novo.id });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao salvar produto', detalhes: error.message });
+  }
+});
+
+app.delete('/api/produtos/:id', authenticate, checkSubscription, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    await prisma.produto.deleteMany({
+      where: { id, usuario_id: req.usuario_id }
+    });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao deletar produto' });
+  }
+});
+// === ROTAS DE DASHBOARD ===
+app.get('/api/dashboard/stats', authenticate, checkSubscription, async (req, res) => {
+  try {
+    const produtos = await prisma.produto.findMany({
+      where: { usuario_id: req.usuario_id },
+      include: { itens_custo: true },
+      orderBy: { criado_em: 'desc' }
+    });
+
+    let totalCustoBase = 0;
+    let maiorCusto = { nome: 'Nenhum', valor: 0 };
+
+    const formatados = produtos.map(p => {
+      let custoRestrito = 0;
+      let lucroObj = p.itens_custo.find(i => i.nome.toUpperCase().includes('LUCRO'));
+
+      p.itens_custo.forEach(i => {
+         const val = Number(i.valor);
+         if (val > 0 && i.unidade === 'R$' && !i.nome.toUpperCase().includes('LUCRO')) {
+            custoRestrito += val;
+         }
+      });
+
+      totalCustoBase += custoRestrito;
+      if (custoRestrito > (maiorCusto.valor || 0)) {  // Corrigido tratamento do maior custo
+         maiorCusto = { nome: p.nome, valor: custoRestrito };
+      }
+
+      return {
+         id: p.id,
+         nome: p.nome,
+         custo_base: custoRestrito,
+         lucro_desejado: lucroObj ? Number(lucroObj.valor) : 0,
+         unidade_lucro: lucroObj ? lucroObj.unidade : 'R$',
+         data_criacao: p.criado_em
+      };
+    });
+
+    const totalProdutos = formatados.length;
+    const custoMedio = totalProdutos > 0 ? (totalCustoBase / totalProdutos) : 0;
+    const ultimosProdutos = formatados.slice(0, 5);
+
+    res.json({
+      totalProdutos,
+      custoMedio,
+      maiorCusto,
+      ultimosProdutos
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao buscar métricas do dashboard' });
+  }
+});
+
+// Porta provisória para local tests
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => {
+  console.log(`Backend de Controle de Custos rodando na porta ${PORT}`);
+});
