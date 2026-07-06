@@ -526,8 +526,8 @@
     .no-print, .config-bar, .btn-icon-remove, .btn-add-line, .btn-primary-lg, .actions-grid, .modal-overlay, .btn-voltar { display: none !important; }
     .print-hidden { display: none !important; }
 
-    .erp-grid { display: block; border: none; }
-    .left-column { width: 100%; margin-bottom: 25px; }
+    .erp-grid { display: flex !important; flex-direction: column-reverse !important; border: none; }
+    .left-column { width: 100%; margin-bottom: 0; margin-top: 25px; }
     .right-column { width: 100%; }
 
     .card-panel { border: none !important; box-shadow: none !important; padding: 0 !important; margin-bottom: 25px !important; }
