@@ -205,6 +205,7 @@ export default function VendaDireta() {
             </nav>
 
             <div className={styles['container-erp']}>
+                <h2 className={`${styles['print-title']} ${styles['only-print']}`}>{nomeProduto || "Produto Sem Nome"}</h2>
                 <div className={styles['erp-grid']}>
 
                     <div className={styles['left-column']}>
