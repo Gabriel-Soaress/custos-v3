@@ -26,7 +26,7 @@ const Icons = {
 export default function VendaDireta() {
     const fileInputRef = useRef(null);
     const [nomeProduto, setNomeProduto] = useState('');
-    const [itens, setItens] = useState([{ nome: 'LUCRO', valor: '', fixo: false, unidade: 'R$' }]);
+    const [itens, setItens] = useState([{ nome: 'LUCRO', valor: '', fixo: false, unidade: 'R$', categoria: 'lucro' }]);
 
     // IMPOSTO: Estado local (para editar na tela), futuramente vindo do banco
     const [imposto, setImposto] = useState(6);
@@ -36,6 +36,7 @@ export default function VendaDireta() {
     const [presetSelecionado, setPresetSelecionado] = useState('');
     const [showModal, setShowModal] = useState(false);
     const [showModalProdutos, setShowModalProdutos] = useState(false);
+    const [produtoId, setProdutoId] = useState(null); // ID do produto carregado da nuvem
 
     useEffect(() => {
         carregarPresetsDoStorage();
@@ -66,17 +67,32 @@ export default function VendaDireta() {
         }
     };
 
-    const salvarProdutoNuvem = async () => {
+    const salvarProdutoNuvem = async (isCopy = false) => {
         if (!nomeProduto) return alert("Dê um nome ao produto primeiro!");
         const token = localStorage.getItem('custos_token');
         if (!token) return alert("Sessão inválida!");
+
+        const payload = {
+            nome: nomeProduto,
+            imposto: parseFloat(imposto),
+            itens: itens
+        };
+
+        // Se não for cópia e tivermos um ID, enviamos para atualizar
+        if (!isCopy && produtoId) {
+            payload.id = produtoId;
+        }
+
         try {
-            await axios.post(`${API_BASE_URL}/api/produtos`, {
-                nome: nomeProduto,
-                imposto: parseFloat(imposto),
-                itens: itens
-            }, { headers: { Authorization: `Bearer ${token}` } });
-            alert("Produto salvo na nuvem com sucesso!");
+            const res = await axios.post(`${API_BASE_URL}/api/produtos`, payload, { 
+                headers: { Authorization: `Bearer ${token}` } 
+            });
+            
+            if (!isCopy && res.data.id) {
+                setProdutoId(res.data.id);
+            }
+            
+            alert(isCopy ? "Cópia salva na nuvem com sucesso!" : "Produto salvo na nuvem com sucesso!");
         } catch(e) { 
             console.error("Erro ao salvar:", e);
             const msg = e.response?.data?.error || "Erro desconhecido ao salvar.";
@@ -86,6 +102,7 @@ export default function VendaDireta() {
 
     const carregarProdutoNuvem = (prod) => {
         if (window.confirm(`Carregar o produto ${prod.nome}? Todos os dados atuais das planilhas serão apagados.`)) {
+            setProdutoId(prod.id);
             setNomeProduto(prod.nome);
             setImposto(prod.imposto);
             setItens(prod.itens);
@@ -99,8 +116,14 @@ export default function VendaDireta() {
         const modelo = presets.find(p => p.id.toString() === id);
         if (modelo) {
             if (itens.length > 1 && !window.confirm("Substituir itens atuais?")) return;
-            const novos = modelo.itens.map(n => ({ nome: n, valor: '', fixo: false, unidade: 'R$' }));
-            novos.push({ nome: 'LUCRO', valor: '', fixo: false, unidade: 'R$' });
+            const novos = modelo.itens.map(n => ({ 
+                nome: n.nome, 
+                valor: n.valor_padrao > 0 ? n.valor_padrao : '', 
+                fixo: false, 
+                unidade: 'R$',
+                categoria: n.categoria || 'materia_prima'
+            }));
+            novos.push({ nome: 'LUCRO', valor: '', fixo: false, unidade: 'R$', categoria: 'lucro' });
             setItens(novos); setResultado(null);
         }
     };
@@ -108,9 +131,10 @@ export default function VendaDireta() {
     const atualizarValor = (i, v) => { const n = [...itens]; n[i].valor = v; setItens(n); };
     const atualizarNome = (i, v) => { const n = [...itens]; n[i].nome = v; setItens(n); };
     const atualizarUnidade = (i, u) => { const n = [...itens]; n[i].unidade = u; setItens(n); };
-    const addItem = () => { setItens([...itens, { nome: '', valor: '', fixo: false, unidade: 'R$' }]); };
+    const atualizarCategoria = (i, c) => { const n = [...itens]; n[i].categoria = c; setItens(n); };
+    const addItem = () => { setItens([...itens, { nome: '', valor: '', fixo: false, unidade: 'R$', categoria: 'materia_prima' }]); };
     const rmItem = (i) => { const n = [...itens]; n.splice(i, 1); setItens(n); };
-    const limpar = () => { if (window.confirm("Zerar tudo?")) { setNomeProduto(''); setItens([{nome:'LUCRO',valor:'',fixo:false,unidade:'R$'}]); setResultado(null); setPresetSelecionado(''); }};
+    const limpar = () => { if (window.confirm("Zerar tudo?")) { setProdutoId(null); setNomeProduto(''); setItens([{nome:'LUCRO',valor:'',fixo:false,unidade:'R$', categoria:'lucro'}]); setResultado(null); setPresetSelecionado(''); }};
 
     // --- CÁLCULO ATUALIZADO ---
     const calcular = () => {
@@ -169,10 +193,16 @@ export default function VendaDireta() {
 
     return (
         <div className={styles.body}>
-            <div className={`${styles['header-top']} ${styles['no-print']}`}>
-                <h1 className={styles.h1}>Venda Direta</h1>
-                <Link to="/dashboard" className={styles['btn-voltar']}><Icons.ArrowLeft /> Voltar</Link>
-            </div>
+            <nav className={`${styles.navbar} ${styles['no-print']}`}>
+                <div className={styles.logoArea}>
+                    <h1 className={styles.logoText}>Controle<span>Direta</span></h1>
+                </div>
+                <div className={styles.navActions}>
+                    <Link to="/dashboard" className={styles.btnNavIcon} title="Voltar para Central">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{width:'20px', height:'20px'}}><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                    </Link>
+                </div>
+            </nav>
 
             <div className={styles['container-erp']}>
                 <div className={styles['erp-grid']}>
@@ -209,9 +239,20 @@ export default function VendaDireta() {
                                 <button onClick={() => setShowModalProdutos(true)} className={`${styles['btn-mini']} ${styles['btn-cloud-load']}`} title="Abrir da Nuvem">
                                     <Icons.CloudDownload /> Meus Produtos
                                 </button>
-                                <button onClick={salvarProdutoNuvem} className={`${styles['btn-mini']} ${styles['btn-cloud-save']}`} title="Salvar na Nuvem">
-                                    <Icons.CloudUpload /> Salvar na Nuvem
-                                </button>
+                                {produtoId ? (
+                                    <div className={styles['save-options']}>
+                                        <button onClick={() => salvarProdutoNuvem(false)} className={`${styles['btn-mini']} ${styles['btn-save-cloud']}`} title="Salvar Alterações">
+                                            <Icons.CloudUpload /> Salvar
+                                        </button>
+                                        <button onClick={() => salvarProdutoNuvem(true)} className={`${styles['btn-mini']} ${styles['btn-copy-cloud']}`} title="Salvar uma Cópia">
+                                            <Icons.Plus /> Cópia
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <button onClick={() => salvarProdutoNuvem(false)} className={`${styles['btn-mini']} ${styles['btn-cloud-save']}`} title="Salvar na Nuvem">
+                                        <Icons.CloudUpload /> Salvar na Nuvem
+                                    </button>
+                                )}
                             </div>
 
                             <div className={styles['v-separator']}></div>
@@ -234,8 +275,26 @@ export default function VendaDireta() {
                                 {itens.map((item, index) => {
                                     const isEmpty = !item.nome && !item.valor;
                                     return (
-                                        <div key={index} className={`${styles['item-row']} ${isEmpty ? styles['print-hidden'] : ''}`}>
-                                            <input className={styles['input-text-clean']} placeholder="Nome do Item" value={item.nome} onChange={e => atualizarNome(index, e.target.value)} style={item.nome === 'LUCRO' ? {color:'#10b981', fontWeight:'bold'} : {}} />
+                                        <div key={index} className={`${styles['item-row']} ${styles['item-' + (item.categoria || 'materia_prima')]} ${isEmpty ? styles['print-hidden'] : ''}`}>
+                                            <input 
+                                                className={styles['input-text-clean']} 
+                                                placeholder="Nome do Item" 
+                                                value={item.nome} 
+                                                onChange={e => atualizarNome(index, e.target.value)} 
+                                                style={item.nome === 'LUCRO' ? {color:'#10b981', fontWeight:'bold'} : {}} 
+                                            />
+
+                                            <select 
+                                                className={`${styles['select-categoria']} ${styles['no-print']}`}
+                                                value={item.categoria || 'materia_prima'} 
+                                                onChange={(e) => atualizarCategoria(index, e.target.value)}
+                                                disabled={item.nome === 'LUCRO'}
+                                            >
+                                                <option value="materia_prima">Matéria Prima</option>
+                                                <option value="mao_de_obra">Mão de Obra</option>
+                                                <option value="embalagem">Embalagem</option>
+                                                <option value="lucro">Lucro / Taxas</option>
+                                            </select>
 
                                             <div className={styles['input-joined-wrapper']}>
                                                 <select className={styles['joined-select']} value={item.unidade} onChange={(e) => atualizarUnidade(index, e.target.value)} tabIndex={-1}>

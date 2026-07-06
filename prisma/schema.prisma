@@ -50,6 +50,7 @@ model ProdutoItemCusto {
   nome        String   @db.VarChar(100)
   valor       Decimal  @default(0.00) @db.Decimal(10, 2)
   unidade     String   @db.VarChar(2) // 'R$' ou '%'
+  categoria   String   @default("materia_prima") @db.VarChar(50)
   ordem       Int      @default(0)
   
   produto     Produto  @relation(fields: [produto_id], references: [id], onDelete: Cascade)
@@ -72,11 +73,13 @@ model ModeloPreset {
 }
 
 model ModeloItem {
-  id          Int          @id @default(autoincrement())
-  modelo_id   Int
-  nome_item   String       @db.VarChar(100)
+  id            Int          @id @default(autoincrement())
+  modelo_id     Int
+  nome_item     String       @db.VarChar(100)
+  valor_padrao  Decimal      @default(0.00) @db.Decimal(10, 2)
+  categoria     String       @default("materia_prima") @db.VarChar(50)
   
-  modelo      ModeloPreset @relation(fields: [modelo_id], references: [id], onDelete: Cascade)
+  modelo        ModeloPreset @relation(fields: [modelo_id], references: [id], onDelete: Cascade)
 
   @@index([modelo_id])
   @@map("modelos_itens")

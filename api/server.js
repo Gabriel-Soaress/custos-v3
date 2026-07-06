@@ -159,8 +159,20 @@ app.post('/api/marketplaces', authenticate, checkSubscription, async (req, res) 
 // === ROTAS DE PRESETS ===
 app.get('/api/presets', authenticate, checkSubscription, async (req, res) => {
   try {
-    const presets = await prisma.modeloPreset.findMany({ where: { usuario_id: req.usuario_id }, include: { itens: true } });
-    res.json(presets.map(p => ({ id: p.id, nome: p.nome_modelo, itens: p.itens.map(i => i.nome_item) })));
+    const presets = await prisma.modeloPreset.findMany({
+      where: { usuario_id: req.usuario_id },
+      include: { itens: true }
+    });
+    const formatado = presets.map(p => ({
+      id: p.id,
+      nome: p.nome_modelo,
+      itens: p.itens.map(i => ({
+        nome: i.nome_item,
+        valor_padrao: Number(i.valor_padrao),
+        categoria: i.categoria
+      }))
+    }));
+    res.json(formatado);
   } catch (error) {
     res.status(500).json({ error: 'Erro ao buscar modelos' });
   }
@@ -169,22 +181,61 @@ app.get('/api/presets', authenticate, checkSubscription, async (req, res) => {
 app.post('/api/presets', authenticate, checkSubscription, async (req, res) => {
   try {
     const { id, nome, itens } = req.body;
+    
     if (id) {
+       // Se tem ID, é uma edição
+       // Apaga itens antigos
+       const presetExistente = await prisma.modeloPreset.findFirst({
+          where: { id: parseInt(id), usuario_id: req.usuario_id }
+       });
+       
+       if(!presetExistente) return res.status(404).json({error: 'Modelo não existe'});
+       
        await prisma.modeloItem.deleteMany({ where: { modelo_id: parseInt(id) }});
+       
        const atualizado = await prisma.modeloPreset.update({
           where: { id: parseInt(id) },
-          data: { nome_modelo: nome, itens: { create: itens.map(i => ({ nome_item: i })) } },
+          data: {
+              nome_modelo: nome,
+              itens: {
+                  create: itens.map(i => ({ 
+                      nome_item: i.nome, 
+                      valor_padrao: parseFloat(i.valor) || 0,
+                      categoria: i.categoria || 'materia_prima'
+                  }))
+              }
+          },
           include: { itens: true }
        });
-       return res.json({ id: atualizado.id, nome: atualizado.nome_modelo, itens: atualizado.itens.map(i => i.nome_item) });
+       return res.json({ 
+           id: atualizado.id, 
+           nome: atualizado.nome_modelo, 
+           itens: atualizado.itens.map(i => ({ nome: i.nome_item, valor_padrao: Number(i.valor_padrao), categoria: i.categoria })) 
+       });
     }
+
+    // Criar novo modelo
     const novo = await prisma.modeloPreset.create({
-      data: { usuario_id: req.usuario_id, nome_modelo: nome, itens: { create: itens.map(i => ({ nome_item: i })) } },
+      data: {
+        usuario_id: req.usuario_id,
+        nome_modelo: nome,
+        itens: {
+          create: itens.map(i => ({ 
+              nome_item: i.nome, 
+              valor_padrao: parseFloat(i.valor) || 0,
+              categoria: i.categoria || 'materia_prima'
+          }))
+        }
+      },
       include: { itens: true }
     });
-    res.json({ id: novo.id, nome: novo.nome_modelo, itens: novo.itens.map(i => i.nome_item) });
+    res.json({ 
+        id: novo.id, 
+        nome: novo.nome_modelo, 
+        itens: novo.itens.map(i => ({ nome: i.nome_item, valor_padrao: Number(i.valor_padrao), categoria: i.categoria })) 
+    });
   } catch (error) {
-    res.status(500).json({ error: 'Erro ao salvar modelo' });
+    res.status(500).json({ error: 'Erro ao criar ou atualizar modelo' });
   }
 });
 
@@ -212,10 +263,19 @@ app.get('/api/produtos', authenticate, checkSubscription, async (req, res) => {
       include: { itens_custo: { orderBy: { ordem: 'asc' } } },
       orderBy: { atualizado_em: 'desc' }
     });
-    res.json(produtos.map(p => ({
-      id: p.id, nome: p.nome, imposto: Number(p.imposto_padrao),
-      itens: p.itens_custo.map(i => ({ id: i.id, nome: i.nome, valor: Number(i.valor), unidade: i.unidade }))
-    })));
+    const formatado = produtos.map(p => ({
+      id: p.id,
+      nome: p.nome,
+      imposto: Number(p.imposto_padrao),
+      itens: p.itens_custo.map(i => ({
+        id: i.id,
+        nome: i.nome,
+        valor: Number(i.valor),
+        unidade: i.unidade,
+        categoria: i.categoria
+      }))
+    }));
+    res.json(formatado);
   } catch (error) {
     res.status(500).json({ error: 'Erro ao buscar produtos' });
   }
@@ -223,13 +283,44 @@ app.get('/api/produtos', authenticate, checkSubscription, async (req, res) => {
 
 app.post('/api/produtos', authenticate, checkSubscription, async (req, res) => {
   try {
-    const { nome, imposto, itens } = req.body;
+    const { id, nome, imposto, itens } = req.body;
+    
+    if (id) {
+        // Atualizar produto existente
+        // Apaga itens antigos
+        await prisma.produtoItemCusto.deleteMany({ where: { produto_id: parseInt(id) } });
+
+        const atualizado = await prisma.produto.update({
+            where: { id: parseInt(id), usuario_id: req.usuario_id },
+            data: {
+                nome: nome || 'Produto sem nome',
+                imposto_padrao: parseFloat(imposto) || 0,
+                itens_custo: {
+                    create: itens.map((i, index) => ({
+                        nome: i.nome || '',
+                        valor: parseFloat(i.valor) || 0,
+                        unidade: i.unidade || 'R$',
+                        categoria: i.categoria || 'materia_prima',
+                        ordem: index
+                    }))
+                }
+            }
+        });
+        return res.json({ success: true, id: atualizado.id });
+    }
+
     const novo = await prisma.produto.create({
       data: {
-        usuario_id: req.usuario_id, nome: nome || 'Produto', imposto_padrao: parseFloat(imposto) || 0,
+        usuario_id: req.usuario_id,
+        nome: nome || 'Produto sem nome',
+        imposto_padrao: parseFloat(imposto) || 0,
         itens_custo: {
           create: itens.map((i, index) => ({
-            nome: i.nome || '', valor: parseFloat(i.valor) || 0, unidade: i.unidade || 'R$', ordem: index
+            nome: i.nome || '',
+            valor: parseFloat(i.valor) || 0,
+            unidade: i.unidade || 'R$',
+            categoria: i.categoria || 'materia_prima',
+            ordem: index
           }))
         }
       }

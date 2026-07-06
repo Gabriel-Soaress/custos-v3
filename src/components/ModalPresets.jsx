@@ -10,16 +10,17 @@ const Icons = {
     Plus: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>,
     Settings: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
 };
-
-export default function ModalPresets({ onClose, onUpdatePresets }) {
+export default function ModalPresets({ onClose, onUpdatePresets }) {
     const [activeTab, setActiveTab] = useState('list');
     const [presets, setPresets] = useState([]);
 
     // Estados para criação/edição
     const [editingId, setEditingId] = useState(null);
     const [novoNome, setNovoNome] = useState('');
-    const [novoItem, setNovoItem] = useState('');
-    const [listaItensTemp, setListaItensTemp] = useState([]);
+    const [novoItemNome, setNovoItemNome] = useState('');
+    const [novoItemValor, setNovoItemValor] = useState('');
+    const [novoItemCategoria, setNovoItemCategoria] = useState('materia_prima');
+    const [listaItensTemp, setListaItensTemp] = useState([]); // Agora é [{nome, valor, categoria}]
 
     useEffect(() => {
         carregarApi();
@@ -41,9 +42,15 @@ export default function ModalPresets({ onClose, onUpdatePresets }) {
 
     const adicionarItemTemp = (e) => {
         e.preventDefault();
-        if (!novoItem.trim()) return;
-        setListaItensTemp([...listaItensTemp, novoItem]);
-        setNovoItem('');
+        if (!novoItemNome.trim()) return;
+        setListaItensTemp([...listaItensTemp, { 
+            nome: novoItemNome, 
+            valor: parseFloat(novoItemValor) || 0,
+            categoria: novoItemCategoria || 'materia_prima'
+        }]);
+        setNovoItemNome('');
+        setNovoItemValor('');
+        setNovoItemCategoria('materia_prima');
     };
 
     const removerItemTemp = (index) => {
@@ -55,7 +62,11 @@ export default function ModalPresets({ onClose, onUpdatePresets }) {
     const iniciarEdicao = (preset) => {
         setEditingId(preset.id);
         setNovoNome(preset.nome);
-        setListaItensTemp([...preset.itens]);
+        setListaItensTemp([...preset.itens].map(i => ({
+            nome: i.nome,
+            valor: i.valor_padrao,
+            categoria: i.categoria || 'materia_prima'
+        })));
         setActiveTab('create');
     };
 
@@ -63,6 +74,7 @@ export default function ModalPresets({ onClose, onUpdatePresets }) {
         setEditingId(null);
         setNovoNome('');
         setListaItensTemp([]);
+        setNovoItemCategoria('materia_prima');
         setActiveTab('list');
     };
 
@@ -112,111 +124,137 @@ export default function ModalPresets({ onClose, onUpdatePresets }) {
                     </button>
                 </div>
 
-                {/* TABS */}
-                <div className={styles.tabs}>
-                    <button
-                        className={`${styles.tab} ${activeTab === 'list' ? styles.active : ''}`}
-                        onClick={() => { setActiveTab('list'); setEditingId(null); }}
-                    >
-                        Meus Modelos
-                    </button>
-                    <button
-                        className={`${styles.tab} ${activeTab === 'create' ? styles.active : ''}`}
-                        onClick={() => { setActiveTab('create'); setEditingId(null); setNovoNome(''); setListaItensTemp([]); }}
-                    >
-                        {editingId ? 'Editar Modelo' : 'Novo Modelo'}
-                    </button>
-                </div>
+                <div className={styles['modal-body']}>
+                    {/* TABS */}
+                    <div className={styles.tabs}>
+                        <button
+                            className={`${styles.tab} ${activeTab === 'list' ? styles.active : ''}`}
+                            onClick={() => { setActiveTab('list'); setEditingId(null); }}
+                        >
+                            Meus Modelos
+                        </button>
+                        <button
+                            className={`${styles.tab} ${activeTab === 'create' ? styles.active : ''}`}
+                            onClick={() => { setActiveTab('create'); setEditingId(null); setNovoNome(''); setListaItensTemp([]); }}
+                        >
+                            {editingId ? 'Editar Modelo' : 'Novo Modelo'}
+                        </button>
+                    </div>
 
-                {/* LISTA VIEW */}
-                {activeTab === 'list' && (
-                    <div className={styles['preset-list']}>
-                        {presets.length === 0 ? (
-                            <div style={{textAlign:'center', padding: '40px 0', color:'#94a3b8'}}>
-                                <p>Nenhum modelo encontrado.</p>
-                                <small>Crie um modelo para agilizar seus cálculos.</small>
-                            </div>
-                        ) : (
-                            presets.map(preset => (
-                                <div key={preset.id} className={styles['preset-item']}>
-                                    <div>
-                                        <div style={{fontWeight: 'bold', color: '#1e293b'}}>{preset.nome}</div>
-                                        <div style={{fontSize: '0.85rem', color: '#64748b'}}>
-                                            {preset.itens.length} características cadastradas
+                    {/* LISTA VIEW */}
+                    {activeTab === 'list' && (
+                        <div className={styles['preset-list']}>
+                            {presets.length === 0 ? (
+                                <div style={{textAlign:'center', padding: '40px 0', color:'#94a3b8'}}>
+                                    <p>Nenhum modelo encontrado.</p>
+                                    <small>Crie um modelo para agilizar seus cálculos.</small>
+                                </div>
+                            ) : (
+                                presets.map(preset => (
+                                    <div key={preset.id} className={styles['preset-item']}>
+                                        <div>
+                                            <div style={{fontWeight: 'bold', color: '#1e293b'}}>{preset.nome}</div>
+                                            <div style={{fontSize: '0.85rem', color: '#64748b'}}>
+                                                {preset.itens.length} características cadastradas
+                                            </div>
+                                        </div>
+                                        <div className={styles['action-buttons']}>
+                                            <button onClick={() => iniciarEdicao(preset)} className={`${styles['icon-btn']} ${styles.edit}`} title="Editar">
+                                                <Icons.Edit />
+                                            </button>
+                                            <button onClick={() => deletarPreset(preset.id)} className={`${styles['icon-btn']} ${styles.delete}`} title="Excluir">
+                                                <Icons.Trash />
+                                            </button>
                                         </div>
                                     </div>
-                                    <div className={styles['action-buttons']}>
-                                        <button onClick={() => iniciarEdicao(preset)} className={`${styles['icon-btn']} ${styles.edit}`} title="Editar">
-                                            <Icons.Edit />
-                                        </button>
-                                        <button onClick={() => deletarPreset(preset.id)} className={`${styles['icon-btn']} ${styles.delete}`} title="Excluir">
-                                            <Icons.Trash />
-                                        </button>
-                                    </div>
-                                </div>
-                            ))
-                        )}
-                    </div>
-                )}
-
-                {/* CREATE/EDIT VIEW */}
-                {activeTab === 'create' && (
-                    <div className={styles['create-area']}>
-                        {editingId && (
-                            <div className={styles['editing-banner']}>
-                                <Icons.Edit /> Editando: <strong>{presets.find(p => p.id === editingId)?.nome}</strong>
-                            </div>
-                        )}
-
-                        <div>
-                            <label className={styles['modal-label']}>Nome do Modelo</label>
-                            <input
-                                type="text"
-                                className={styles['modal-input']}
-                                value={novoNome}
-                                onChange={(e) => setNovoNome(e.target.value)}
-                                placeholder="Ex: Sandália Rasteira 2024"
-                            />
+                                ))
+                            )}
                         </div>
+                    )}
 
-                        <div>
-                            <label className={styles['modal-label']}>Adicionar Características</label>
-                            <form onSubmit={adicionarItemTemp} className={styles['add-item-row']}>
+                    {/* CREATE/EDIT VIEW */}
+                    {activeTab === 'create' && (
+                        <div className={styles['create-area']}>
+                            {editingId && (
+                                <div className={styles['editing-banner']}>
+                                    <Icons.Edit /> Editando: <strong>{presets.find(p => p.id === editingId)?.nome}</strong>
+                                </div>
+                            )}
+
+                            <div>
+                                <label className={styles['modal-label']}>Nome do Modelo</label>
                                 <input
                                     type="text"
                                     className={styles['modal-input']}
-                                    value={novoItem}
-                                    onChange={(e) => setNovoItem(e.target.value)}
-                                    placeholder="Ex: Sola, Palmilha, Fivela..."
+                                    value={novoNome}
+                                    onChange={(e) => setNovoNome(e.target.value)}
+                                    placeholder="Ex: Sandália Rasteira 2024"
                                 />
-                                <button type="submit" className={styles['btn-icon-add']} title="Adicionar">
-                                    <Icons.Plus />
-                                </button>
-                            </form>
-                        </div>
+                            </div>
 
-                        <div className={styles['tag-container']}>
-                            {listaItensTemp.length === 0 && <span style={{color:'#cbd5e1', fontStyle:'italic', margin: 'auto'}}>Itens adicionados aparecerão aqui...</span>}
-                            {listaItensTemp.map((item, idx) => (
-                                <span key={idx} className={styles.tag}>
-                                    {item}
-                                    <span className={styles['tag-remove']} onClick={() => removerItemTemp(idx)}>
-                                        <Icons.Close />
+                            <div>
+                                <label className={styles['modal-label']}>Adicionar Características</label>
+                                <form onSubmit={adicionarItemTemp} className={styles['add-item-row']}>
+                                    <input
+                                        type="text"
+                                        className={styles['modal-input']}
+                                        value={novoItemNome}
+                                        onChange={(e) => setNovoItemNome(e.target.value)}
+                                        placeholder="Nome (Ex: Sola)"
+                                        style={{flex: 2}}
+                                    />
+                                    <input
+                                        type="number"
+                                        className={styles['modal-input']}
+                                        value={novoItemValor}
+                                        onChange={(e) => setNovoItemValor(e.target.value)}
+                                        placeholder="R$ Padrão"
+                                        style={{flex: 1}}
+                                    />
+                                    <select
+                                        className={styles['modal-select-categoria']}
+                                        value={novoItemCategoria}
+                                        onChange={(e) => setNovoItemCategoria(e.target.value)}
+                                        style={{flex: 1.2}}
+                                    >
+                                        <option value="materia_prima">Matéria Prima</option>
+                                        <option value="mao_de_obra">Mão de Obra</option>
+                                        <option value="embalagem">Embalagem</option>
+                                        <option value="lucro">Lucro / Taxas</option>
+                                    </select>
+                                    <button type="submit" className={styles['btn-icon-add']} title="Adicionar">
+                                        <Icons.Plus />
+                                    </button>
+                                </form>
+                            </div>
+
+                             <div className={styles['tag-container']}>
+                                {listaItensTemp.length === 0 && <span style={{color:'#cbd5e1', fontStyle:'italic', margin: 'auto'}}>Itens adicionados aparecerão aqui...</span>}
+                                {listaItensTemp.map((item, idx) => (
+                                    <span key={idx} className={`${styles.tag} ${styles['tag-' + item.categoria]}`}>
+                                        <strong>{item.nome}</strong> 
+                                        {item.valor > 0 && <span style={{color: '#10b981', marginLeft: '4px'}}> (R$ {item.valor})</span>}
+                                        <span className={styles['tag-remove']} onClick={() => removerItemTemp(idx)}>
+                                            <Icons.Close />
+                                        </span>
                                     </span>
-                                </span>
-                            ))}
+                                ))}
+                            </div>
                         </div>
+                    )}
+                </div>
 
-                        <div className={styles['footer-buttons']}>
-                            {editingId && (
-                                <button onClick={cancelarEdicao} className={`${styles['btn-modal']} ${styles['btn-secondary']}`}>
-                                    Cancelar
-                                </button>
-                            )}
-                            <button onClick={salvarPreset} className={`${styles['btn-modal']} ${styles['btn-primary']}`}>
-                                {editingId ? 'Salvar Alterações' : 'Criar Modelo'}
+                {/* FOOTER - Fora do modal-body para ficar fixo */}
+                {activeTab === 'create' && (
+                    <div className={styles['footer-buttons']}>
+                        {editingId && (
+                            <button onClick={cancelarEdicao} className={`${styles['btn-modal']} ${styles['btn-secondary']}`}>
+                                Cancelar
                             </button>
-                        </div>
+                        )}
+                        <button onClick={salvarPreset} className={`${styles['btn-modal']} ${styles['btn-primary']}`}>
+                            {editingId ? 'Salvar Alterações' : 'Criar Modelo'}
+                        </button>
                     </div>
                 )}
             </div>

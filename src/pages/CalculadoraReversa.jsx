@@ -5,6 +5,7 @@ import { API_BASE_URL } from '../apiConfig';
 import styles from '../modules/Reversa.module.css';
 // CORREÇÃO: Importamos o DEFAULTS agora
 import { MARKETPLACES_DEFAULTS, CONFIG_GLOBAL } from '../config/taxas';
+import { SettingsIcon } from '../components/Icons';
 
 export default function CalculadoraReversa() {
     // --- ESTADOS DE DADOS ---
@@ -18,12 +19,103 @@ export default function CalculadoraReversa() {
     const [marketplaces, setMarketplaces] = useState(MARKETPLACES_DEFAULTS);
     const [selectedMktId, setSelectedMktId] = useState(MARKETPLACES_DEFAULTS[0].id);
 
+    // Modal de Taxas
+    const [showConfig, setShowConfig] = useState(false);
+    const [configTemp, setConfigTemp] = useState([]);
+
     // Checkboxes
     const [checks, setChecks] = useState({
         comissao: true, fixa: true, ads: false, extra: true, imposto: true
     });
 
     const [resultado, setResultado] = useState(null);
+
+    const toFloat = (val) => {
+        if (!val) return 0;
+        return parseFloat(val.toString().replace(',', '.'));
+    };
+
+    const abrirConfig = () => {
+        const configParaEditar = marketplaces.map(m => ({
+            ...m,
+            unidadeAds: m.unidadeAds || '%',
+            unidadeExtra: m.unidadeExtra || '%',
+            unidadeImposto: m.unidadeImposto || '%',
+            taxaComissao: ((m.taxaComissao || 0) * 100).toString().replace('.', ','),
+            taxaFixa: (m.taxaFixa || 0).toString().replace('.', ','),
+            taxaAds: m.unidadeAds === 'R$' ? (m.taxaAds || 0).toString().replace('.', ',') : ((m.taxaAds || 0) * 100).toString().replace('.', ','),
+            taxaExtra: m.unidadeExtra === 'R$' ? (m.taxaExtra || 0).toString().replace('.', ',') : ((m.taxaExtra || 0) * 100).toString().replace('.', ','),
+            imposto: m.unidadeImposto === 'R$' ? (m.imposto || 0).toString().replace('.', ',') : ((m.imposto || 0) * 100).toString().replace('.', ',')
+        }));
+        setConfigTemp(configParaEditar);
+        setShowConfig(true);
+    };
+
+    const atualizarConfigTemp = (id, campo, valor) => {
+        const novos = configTemp.map(m => {
+            if (m.id === id) return { ...m, [campo]: valor };
+            return m;
+        });
+        setConfigTemp(novos);
+    };
+
+    const restaurarPadrao = (id) => {
+        if (!window.confirm("Restaurar taxas originais desta loja?")) return;
+        const padrao = MARKETPLACES_DEFAULTS.find(d => d.id === id);
+        if (!padrao) return;
+
+        const novos = configTemp.map(m => {
+            if (m.id === id) {
+                return {
+                    ...padrao,
+                    unidadeAds: padrao.unidadeAds || '%',
+                    unidadeExtra: padrao.unidadeExtra || '%',
+                    unidadeImposto: padrao.unidadeImposto || '%',
+                    taxaComissao: ((padrao.taxaComissao || 0) * 100).toString().replace('.', ','),
+                    taxaFixa: (padrao.taxaFixa || 0).toString().replace('.', ','),
+                    taxaAds: padrao.unidadeAds === 'R$' ? (padrao.taxaAds || 0).toString().replace('.', ',') : ((padrao.taxaAds || 0) * 100).toString().replace('.', ','),
+                    taxaExtra: padrao.unidadeExtra === 'R$' ? (padrao.taxaExtra || 0).toString().replace('.', ',') : ((padrao.taxaExtra || 0) * 100).toString().replace('.', ','),
+                    imposto: padrao.unidadeImposto === 'R$' ? (padrao.imposto || 0).toString().replace('.', ',') : ((padrao.imposto || 0) * 100).toString().replace('.', ',')
+                };
+            }
+            return m;
+        });
+        setConfigTemp(novos);
+    };
+
+    const salvarConfiguracoes = async () => {
+        const finalConfig = configTemp.map(m => {
+            const vComissao = toFloat(m.taxaComissao);
+            const vFixa = toFloat(m.taxaFixa);
+            const vAds = toFloat(m.taxaAds);
+            const vExtra = toFloat(m.taxaExtra);
+            const vImp = toFloat(m.imposto);
+
+            return {
+                ...m,
+                taxaComissao: vComissao / 100,
+                taxaFixa: vFixa,
+                taxaAds: m.unidadeAds === '%' ? vAds / 100 : vAds,
+                taxaExtra: m.unidadeExtra === '%' ? vExtra / 100 : vExtra,
+                imposto: m.unidadeImposto === '%' ? vImp / 100 : vImp
+            };
+        });
+
+        const token = localStorage.getItem('custos_token');
+        if (token) {
+            try {
+                await axios.post(`${API_BASE_URL}/api/marketplaces`, finalConfig, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+            } catch (err) {
+                console.error("Erro ao salvar", err);
+                alert("Falha ao sincronizar com o banco de dados remoto.");
+            }
+        }
+
+        setMarketplaces(finalConfig);
+        setShowConfig(false);
+    };
 
     // EFEITO: Carregar as taxas personalizadas logadas e salvar cache
     useEffect(() => {
@@ -112,12 +204,21 @@ export default function CalculadoraReversa() {
 
     return (
         <div className={styles.body}>
-            <div className={`${styles['nav-container']} ${styles['no-print']}`}>
-                <Link to="/dashboard" className={styles['btn-voltar']}>Voltar para Central</Link>
-            </div>
+            <nav className={`${styles.navbar} ${styles['no-print']}`}>
+                <div className={styles.logoArea}>
+                    <h1 className={styles.logoText}>Controle<span>Reversa</span></h1>
+                </div>
+                <div className={styles.navActions}>
+                    <button onClick={abrirConfig} className={styles.btnNavIcon} title="Configurar Taxas" style={{border: '1px solid #cbd5e1', padding: 0}}>
+                        <SettingsIcon />
+                    </button>
+                    <Link to="/dashboard" className={styles.btnNavIcon} title="Voltar para Central">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{width:'20px', height:'20px'}}><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                    </Link>
+                </div>
+            </nav>
 
             <div className={styles.container}>
-                <h1 className={styles.h1}>Prova Real de Lucro</h1>
 
                 <div className={`${styles['marketplace-selector']} ${styles['no-print']}`}>
                     <label className={styles['label-select']}>Onde você vai vender?</label>
@@ -150,25 +251,51 @@ export default function CalculadoraReversa() {
 
                 <div className={`${styles['taxas-area']} ${styles['no-print']}`}>
                     <div className={styles['taxas-title']}>Descontos Ativos ({currentMkt.nome})</div>
-                    <div className={styles['checkbox-row']}>
-                        <label className={styles['checkbox-label']}>
-                            <input type="checkbox" className={styles['checkbox-input']} checked={checks.comissao} onChange={e => setChecks({...checks, comissao: e.target.checked})} />
-                            Comissão ({((currentMkt.taxaComissao || 0) * 100).toFixed(1)}%)
-                        </label>
-                    </div>
-                    {(currentMkt.taxaFixa || 0) > 0 && <div className={styles['checkbox-row']}><label className={styles['checkbox-label']}><input type="checkbox" className={styles['checkbox-input']} checked={checks.fixa} onChange={e => setChecks({...checks, fixa: e.target.checked})} /> Taxa Fixa (R$ {(currentMkt.taxaFixa || 0).toFixed(2)})</label></div>}
-                    <div className={styles['checkbox-row']}>
-                        <label className={styles['checkbox-label']}>
-                            <input type="checkbox" className={styles['checkbox-input']} checked={checks.ads} onChange={e => setChecks({...checks, ads: e.target.checked})} /> 
-                            Ads ({currentMkt.unidadeAds === 'R$' ? 'R$ '+ (currentMkt.taxaAds || 0).toFixed(2) : ((currentMkt.taxaAds || 0) * 100).toFixed(1) + '%'})
-                        </label>
-                    </div>
-                    <div className={styles['checkbox-row']}>
-                        <label className={styles['checkbox-label']}>
-                            <input type="checkbox" className={styles['checkbox-input']} checked={checks.imposto} onChange={e => setChecks({...checks, imposto: e.target.checked})} /> 
-                            Imposto ({currentMkt.unidadeImposto === 'R$' ? 'R$ '+ (currentMkt.imposto || 0).toFixed(2) : ((currentMkt.imposto || 0) * 100).toFixed(1) + '%'})
-                        </label>
-                    </div>
+                    
+                    {(currentMkt.taxaComissao || 0) > 0 && (
+                        <div className={styles['checkbox-row']}>
+                            <label className={styles['checkbox-label']}>
+                                <input type="checkbox" className={styles['checkbox-input']} checked={checks.comissao} onChange={e => setChecks({...checks, comissao: e.target.checked})} />
+                                Comissão ({((currentMkt.taxaComissao || 0) * 100).toFixed(1)}%)
+                            </label>
+                        </div>
+                    )}
+                    
+                    {(currentMkt.taxaFixa || 0) > 0 && (
+                        <div className={styles['checkbox-row']}>
+                            <label className={styles['checkbox-label']}>
+                                <input type="checkbox" className={styles['checkbox-input']} checked={checks.fixa} onChange={e => setChecks({...checks, fixa: e.target.checked})} /> 
+                                Taxa Fixa (R$ {(currentMkt.taxaFixa || 0).toFixed(2)})
+                            </label>
+                        </div>
+                    )}
+                    
+                    {(currentMkt.taxaAds || 0) > 0 && (
+                        <div className={styles['checkbox-row']}>
+                            <label className={styles['checkbox-label']}>
+                                <input type="checkbox" className={styles['checkbox-input']} checked={checks.ads} onChange={e => setChecks({...checks, ads: e.target.checked})} /> 
+                                Ads ({currentMkt.unidadeAds === 'R$' ? 'R$ '+ (currentMkt.taxaAds || 0).toFixed(2) : ((currentMkt.taxaAds || 0) * 100).toFixed(1) + '%'})
+                            </label>
+                        </div>
+                    )}
+                    
+                    {(currentMkt.taxaExtra || 0) > 0 && (
+                        <div className={styles['checkbox-row']}>
+                            <label className={styles['checkbox-label']}>
+                                <input type="checkbox" className={styles['checkbox-input']} checked={checks.extra} onChange={e => setChecks({...checks, extra: e.target.checked})} /> 
+                                Taxa Extra ({currentMkt.unidadeExtra === 'R$' ? 'R$ '+ (currentMkt.taxaExtra || 0).toFixed(2) : ((currentMkt.taxaExtra || 0) * 100).toFixed(1) + '%'})
+                            </label>
+                        </div>
+                    )}
+                    
+                    {(currentMkt.imposto !== undefined ? currentMkt.imposto : CONFIG_GLOBAL.imposto) > 0 && (
+                        <div className={styles['checkbox-row']}>
+                            <label className={styles['checkbox-label']}>
+                                <input type="checkbox" className={styles['checkbox-input']} checked={checks.imposto} onChange={e => setChecks({...checks, imposto: e.target.checked})} /> 
+                                Imposto ({currentMkt.unidadeImposto === 'R$' ? 'R$ '+ (Number(currentMkt.imposto || 0)).toFixed(2) : ((Number(currentMkt.imposto !== undefined ? currentMkt.imposto : CONFIG_GLOBAL.imposto)) * 100).toFixed(1) + '%'})
+                            </label>
+                        </div>
+                    )}
                 </div>
 
                 <button onClick={calcular} className={`${styles['btn-calc']} ${styles['no-print']}`}>Ver Lucro Real</button>
@@ -187,6 +314,110 @@ export default function CalculadoraReversa() {
                     </div>
                 )}
             </div>
+
+            {/* --- MODAL DE CONFIGURAÇÃO --- */}
+            {showConfig && (
+                <div className={styles['modal-overlay']}>
+                    <div className={styles['modal-content']}>
+                        <div className={styles['modal-header']}>
+                            <h3>Configurar Taxas das Lojas</h3>
+                            <button onClick={() => setShowConfig(false)} style={{background:'none', border:'none', cursor:'pointer', fontSize:'1.5rem'}}>&times;</button>
+                        </div>
+
+                        <div className={styles['modal-body']}>
+                            {configTemp.map((mkt) => (
+                                <div key={mkt.id} className={styles['config-item']}>
+                                    <div className={styles['config-row-top']}>
+                                        <span className={styles['store-name']}>
+                                            <span className={styles['color-dot']} style={{backgroundColor: mkt.cor}}></span>
+                                            {mkt.nome}
+                                        </span>
+                                        <button onClick={() => restaurarPadrao(mkt.id)} className={styles['btn-restore']}>
+                                            Restaurar Padrão
+                                        </button>
+                                    </div>
+
+                                    <div className={styles['inputs-grid']}>
+                                        <div className={styles['input-group']}>
+                                            <label className={styles['label-cfg']}>Comissão</label>
+                                            <div className={styles['input-joined-wrapper']}>
+                                                <span className={styles['joined-select']} style={{cursor:'default'}}>%</span>
+                                                <input
+                                                    type="text" inputMode="decimal" className={styles['joined-input']}
+                                                    value={mkt.taxaComissao}
+                                                    onChange={e => atualizarConfigTemp(mkt.id, 'taxaComissao', e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className={styles['input-group']}>
+                                            <label className={styles['label-cfg']}>Taxa Fixa</label>
+                                            <div className={styles['input-joined-wrapper']}>
+                                                <span className={styles['joined-select']} style={{cursor:'default'}}>R$</span>
+                                                <input
+                                                    type="text" inputMode="decimal" className={styles['joined-input']}
+                                                    value={mkt.taxaFixa}
+                                                    onChange={e => atualizarConfigTemp(mkt.id, 'taxaFixa', e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className={styles['input-group']}>
+                                            <label className={styles['label-cfg']}>Ads / Mkt</label>
+                                            <div className={styles['input-joined-wrapper']}>
+                                                <select className={styles['joined-select']} value={mkt.unidadeAds} onChange={e => atualizarConfigTemp(mkt.id, 'unidadeAds', e.target.value)}>
+                                                    <option value="%">%</option>
+                                                    <option value="R$">R$</option>
+                                                </select>
+                                                <input
+                                                    type="text" inputMode="decimal" className={styles['joined-input']}
+                                                    value={mkt.taxaAds}
+                                                    onChange={e => atualizarConfigTemp(mkt.id, 'taxaAds', e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className={styles['input-group']}>
+                                            <label className={styles['label-cfg']}>Taxa Extra</label>
+                                            <div className={styles['input-joined-wrapper']}>
+                                                <select className={styles['joined-select']} value={mkt.unidadeExtra} onChange={e => atualizarConfigTemp(mkt.id, 'unidadeExtra', e.target.value)}>
+                                                    <option value="%">%</option>
+                                                    <option value="R$">R$</option>
+                                                </select>
+                                                <input
+                                                    type="text" inputMode="decimal" className={styles['joined-input']}
+                                                    value={mkt.taxaExtra}
+                                                    onChange={e => atualizarConfigTemp(mkt.id, 'taxaExtra', e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className={styles['input-group']}>
+                                            <label className={styles['label-cfg']}>Imposto</label>
+                                            <div className={styles['input-joined-wrapper']}>
+                                                <select className={styles['joined-select']} value={mkt.unidadeImposto} onChange={e => atualizarConfigTemp(mkt.id, 'unidadeImposto', e.target.value)}>
+                                                    <option value="%">%</option>
+                                                    <option value="R$">R$</option>
+                                                </select>
+                                                <input
+                                                    type="text" inputMode="decimal" className={styles['joined-input']}
+                                                    value={mkt.imposto}
+                                                    onChange={e => atualizarConfigTemp(mkt.id, 'imposto', e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className={styles['modal-footer']}>
+                            <button onClick={() => setShowConfig(false)} className={styles['btn-cancel']}>Cancelar</button>
+                            <button onClick={salvarConfiguracoes} className={styles['btn-save']}>Salvar Alterações</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

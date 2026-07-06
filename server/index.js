@@ -204,7 +204,11 @@ app.get('/api/presets', authenticate, checkSubscription, async (req, res) => {
     const formatado = presets.map(p => ({
       id: p.id,
       nome: p.nome_modelo,
-      itens: p.itens.map(i => i.nome_item)
+      itens: p.itens.map(i => ({
+        nome: i.nome_item,
+        valor_padrao: Number(i.valor_padrao),
+        categoria: i.categoria
+      }))
     }));
     res.json(formatado);
   } catch (error) {
@@ -232,12 +236,20 @@ app.post('/api/presets', authenticate, checkSubscription, async (req, res) => {
           data: {
               nome_modelo: nome,
               itens: {
-                  create: itens.map(i => ({ nome_item: i }))
+                  create: itens.map(i => ({ 
+                      nome_item: i.nome, 
+                      valor_padrao: parseFloat(i.valor) || 0,
+                      categoria: i.categoria || 'materia_prima'
+                  }))
               }
           },
           include: { itens: true }
        });
-       return res.json({ id: atualizado.id, nome: atualizado.nome_modelo, itens: atualizado.itens.map(i => i.nome_item) });
+       return res.json({ 
+           id: atualizado.id, 
+           nome: atualizado.nome_modelo, 
+           itens: atualizado.itens.map(i => ({ nome: i.nome_item, valor_padrao: Number(i.valor_padrao), categoria: i.categoria })) 
+       });
     }
 
     // Criar novo modelo
@@ -246,12 +258,20 @@ app.post('/api/presets', authenticate, checkSubscription, async (req, res) => {
         usuario_id: req.usuario_id,
         nome_modelo: nome,
         itens: {
-          create: itens.map(i => ({ nome_item: i }))
+          create: itens.map(i => ({ 
+              nome_item: i.nome, 
+              valor_padrao: parseFloat(i.valor) || 0,
+              categoria: i.categoria || 'materia_prima'
+          }))
         }
       },
       include: { itens: true }
     });
-    res.json({ id: novo.id, nome: novo.nome_modelo, itens: novo.itens.map(i => i.nome_item) });
+    res.json({ 
+        id: novo.id, 
+        nome: novo.nome_modelo, 
+        itens: novo.itens.map(i => ({ nome: i.nome_item, valor_padrao: Number(i.valor_padrao), categoria: i.categoria })) 
+    });
   } catch (error) {
     res.status(500).json({ error: 'Erro ao criar ou atualizar modelo' });
   }
@@ -286,7 +306,8 @@ app.get('/api/produtos', authenticate, checkSubscription, async (req, res) => {
         id: i.id,
         nome: i.nome,
         valor: Number(i.valor),
-        unidade: i.unidade
+        unidade: i.unidade,
+        categoria: i.categoria
       }))
     }));
     res.json(formatado);
@@ -297,8 +318,32 @@ app.get('/api/produtos', authenticate, checkSubscription, async (req, res) => {
 
 app.post('/api/produtos', authenticate, checkSubscription, async (req, res) => {
   try {
-    const { nome, imposto, itens } = req.body;
+    const { id, nome, imposto, itens } = req.body;
     
+    if (id) {
+        // Atualizar produto existente
+        // Apaga itens antigos
+        await prisma.produtoItemCusto.deleteMany({ where: { produto_id: parseInt(id) } });
+
+        const atualizado = await prisma.produto.update({
+            where: { id: parseInt(id), usuario_id: req.usuario_id },
+            data: {
+                nome: nome || 'Produto sem nome',
+                imposto_padrao: parseFloat(imposto) || 0,
+                itens_custo: {
+                    create: itens.map((i, index) => ({
+                        nome: i.nome || '',
+                        valor: parseFloat(i.valor) || 0,
+                        unidade: i.unidade || 'R$',
+                        categoria: i.categoria || 'materia_prima',
+                        ordem: index
+                    }))
+                }
+            }
+        });
+        return res.json({ success: true, id: atualizado.id });
+    }
+
     const novo = await prisma.produto.create({
       data: {
         usuario_id: req.usuario_id,
@@ -309,6 +354,7 @@ app.post('/api/produtos', authenticate, checkSubscription, async (req, res) => {
             nome: i.nome || '',
             valor: parseFloat(i.valor) || 0,
             unidade: i.unidade || 'R$',
+            categoria: i.categoria || 'materia_prima',
             ordem: index
           }))
         }

@@ -20,6 +20,7 @@ export default function CalculadoraShopee() {
     const [precoVenda, setPrecoVenda] = useState('');
     const [custoProduto, setCustoProduto] = useState('');
     const [lucroDesejado, setLucroDesejado] = useState('');
+    const [unidadeLucro, setUnidadeLucro] = useState('R$');
     const [resultados, setResultados] = useState([]);
 
     const [marketplaces, setMarketplaces] = useState([]);
@@ -41,6 +42,7 @@ export default function CalculadoraShopee() {
             setPrecoVenda(salvoCalc.venda || '');
             setCustoProduto(salvoCalc.custo || '');
             setLucroDesejado(salvoCalc.lucro || '6.00');
+            if (salvoCalc.unidadeLucro) setUnidadeLucro(salvoCalc.unidadeLucro);
         }
 
         const fetchMarketplaces = async () => {
@@ -69,15 +71,15 @@ export default function CalculadoraShopee() {
 
     const calcular = () => {
         const custo = toFloat(custoProduto);
-        const lucro = toFloat(lucroDesejado);
+        const lucroVal = toFloat(lucroDesejado);
 
-        if (isNaN(custo) || isNaN(lucro) || (custo === 0 && lucro === 0)) {
+        if (isNaN(custo) || isNaN(lucroVal) || (custo === 0 && lucroVal === 0)) {
             alert("Preencha o Custo e o Lucro esperado corretamente.");
             return;
         }
 
         localStorage.setItem('mkt_last_calc', JSON.stringify({
-            nome: nomeProduto, custo: custoProduto, lucro: lucroDesejado
+            nome: nomeProduto, custo: custoProduto, lucro: lucroDesejado, unidadeLucro: unidadeLucro
         }));
 
         const novosCalculos = marketplaces.map(mkt => {
@@ -93,10 +95,15 @@ export default function CalculadoraShopee() {
             if (mkt.unidadeImposto === 'R$') sumFixa += (mkt.imposto || 0);
             else sumPorcentagem += (mkt.imposto || 0);
 
+            if (unidadeLucro === '%') {
+                sumPorcentagem += (lucroVal / 100);
+            }
+
             const divisor = 1 - sumPorcentagem;
             if (divisor <= 0) return null;
 
-            const precoVenda = (custo + lucro + sumFixa) / divisor;
+            const precoVenda = (custo + (unidadeLucro === 'R$' ? lucroVal : 0) + sumFixa) / divisor;
+            const lucroRealCalculado = unidadeLucro === 'R$' ? lucroVal : precoVenda * (lucroVal / 100);
 
             return {
                 ...mkt,
@@ -108,7 +115,7 @@ export default function CalculadoraShopee() {
                     imposto: mkt.unidadeImposto === 'R$' ? (mkt.imposto || 0) : precoVenda * (mkt.imposto || 0),
                     fixa: mkt.taxaFixa || 0,
                     custo: custo,
-                    lucro: lucro
+                    lucro: lucroRealCalculado
                 }
             };
         }).filter(Boolean);
@@ -200,17 +207,22 @@ export default function CalculadoraShopee() {
 
     return (
         <div className={styles.body}>
-            <div className={`${styles['nav-container']} ${styles['no-print']}`}>
-                <div className={styles['top-buttons']}>
-                    <Link to="/dashboard" className={styles['nav-btn']}>Voltar para Central</Link>
-                    <button onClick={abrirConfig} className={styles['btn-config']} style={{display:'flex', alignItems:'center', gap:'8px'}}>
-                        <SettingsIcon /> Configurar Taxas
-                    </button>
+            <nav className={`${styles.navbar} ${styles['no-print']}`}>
+                <div className={styles.logoArea}>
+                    <h1 className={styles.logoText}>Controle<span>Lojas</span></h1>
                 </div>
-            </div>
+                <div className={styles.navActions}>
+                    <button onClick={abrirConfig} className={styles.btnNavIcon} title="Configurar Taxas" style={{border: '1px solid #cbd5e1', padding: 0}}>
+                        <SettingsIcon />
+                    </button>
+                    <Link to="/dashboard" className={styles.btnNavIcon} title="Voltar para Central">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{width:'20px', height:'20px'}}><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                    </Link>
+                </div>
+            </nav>
 
             <div className={styles.container}>
-                <h1 className={styles.h1}>Precificação Multi-Lojas</h1>
+
 
                 {/* === AQUI: ADICIONADA A CLASSE NO-PRINT PARA ESCONDER OS INPUTS === */}
                 <div className={`${styles['input-area']} ${styles['no-print']}`}>
@@ -225,9 +237,15 @@ export default function CalculadoraShopee() {
                                value={custoProduto} onChange={(e) => setCustoProduto(e.target.value)} />
                     </div>
                     <div className={styles['form-group']}>
-                        <label className={styles.label}>Lucro Líquido (R$)</label>
-                        <input type="text" inputMode="decimal" className={styles.input} placeholder="0,00"
-                               value={lucroDesejado} onChange={(e) => setLucroDesejado(e.target.value)} />
+                        <label className={styles.label}>Lucro Líquido</label>
+                        <div className={styles['input-joined-wrapper']}>
+                            <select className={styles['joined-select']} value={unidadeLucro} onChange={e => setUnidadeLucro(e.target.value)}>
+                                <option value="R$">R$</option>
+                                <option value="%">%</option>
+                            </select>
+                            <input type="text" inputMode="decimal" className={styles['joined-input']} placeholder="0,00"
+                                   value={lucroDesejado} onChange={(e) => setLucroDesejado(e.target.value)} />
+                        </div>
                     </div>
                     <button onClick={calcular} className={styles['btn-calc']}>CALCULAR PREÇOS</button>
                 </div>
@@ -238,7 +256,7 @@ export default function CalculadoraShopee() {
                             <h2>Relatório: {nomeProduto || "Produto Sem Nome"}</h2>
                             <p>
                                 <strong>Custo Original:</strong> R$ {parseFloat(custoProduto.toString().replace(',','.')||0).toFixed(2)} &nbsp;|&nbsp;
-                                <strong>Lucro Alvo:</strong> R$ {parseFloat(lucroDesejado.toString().replace(',','.')||0).toFixed(2)}
+                                <strong>Lucro Alvo:</strong> {unidadeLucro === 'R$' ? 'R$ ' : ''}{parseFloat(lucroDesejado.toString().replace(',','.')||0).toFixed(2)}{unidadeLucro === '%' ? '%' : ''}
                             </p>
                             <small>Data: {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR')}</small>
                         </div>
