@@ -541,15 +541,16 @@
     .item-row.item-lucro {
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
-        border: 1px solid !important;
-        border-radius: 8px !important;
-        padding: 8px 12px !important;
-        margin-bottom: 8px !important;
+        border: none !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+        border-radius: 0 !important;
+        padding: 8px 6px !important;
+        margin-bottom: 0 !important;
     }
-    .item-row.item-materia_prima { background-color: #f0f7ff !important; border-color: #bae6fd !important; }
-    .item-row.item-mao_de_obra { background-color: #fffbeb !important; border-color: #fef3c7 !important; }
-    .item-row.item-embalagem { background-color: #faf5ff !important; border-color: #e9d5ff !important; }
-    .item-row.item-lucro { background-color: #f0fdf4 !important; border-color: #bbf7d0 !important; }
+    .item-row.item-materia_prima { background-color: #f0f7ff !important; }
+    .item-row.item-mao_de_obra { background-color: #fffbeb !important; }
+    .item-row.item-embalagem { background-color: #faf5ff !important; }
+    .item-row.item-lucro { background-color: #f0fdf4 !important; }
     .input-text-clean { border: none !important; text-align: left !important; padding: 0 !important; color: #000 !important; font-weight: 600 !important; min-width: auto !important; }
 
     .input-joined-wrapper { border: none !important; background: transparent !important; width: auto !important; display: flex !important; align-items: center !important; justify-content: flex-end !important; box-shadow: none !important; flex: none !important; }
