@@ -155,6 +155,7 @@ export default function VendaDireta() {
         // 2. Calcular % e Totais
         const itensDetalhados = [];
         let somaTotal = 0;
+        let somaSemLucro = 0;
 
         itensParaProcessar.forEach(item => {
             let valorFinal = 0;
@@ -164,6 +165,9 @@ export default function VendaDireta() {
                 valorFinal = item.valorInput;
             }
             somaTotal += valorFinal;
+            if (item.nome !== 'LUCRO') {
+                somaSemLucro += valorFinal;
+            }
             itensDetalhados.push({
                 nome: item.nome,
                 valor: valorFinal,
@@ -182,6 +186,7 @@ export default function VendaDireta() {
         setResultado({
             semNota: somaTotal,
             comNota: comNota,
+            custoProducao: somaSemLucro,
             impostoDisplay: imposto, // Passa o valor do state
             itensValidos: itensDetalhados,
             data: new Date().toLocaleString('pt-BR')
@@ -322,6 +327,10 @@ export default function VendaDireta() {
                             {resultado && (
                                 <div className={styles['result-card']}>
                                     <div className={styles['section-title']} style={{border:0, marginTop: '20px'}}><Icons.Money /> Custos Finais</div>
+                                    <div className={styles['result-row']}>
+                                        <span className={styles['result-label']}>Soma sem Lucro</span>
+                                        <span className={styles['result-value']}>R$ {resultado.custoProducao.toFixed(2)}</span>
+                                    </div>
                                     <div className={styles['result-row']}>
                                         <span className={styles['result-label']}>Sem Nota</span>
                                         <span className={`${styles['result-value']} ${styles['highlight-green']}`}>R$ {resultado.semNota.toFixed(2)}</span>
