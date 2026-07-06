@@ -539,18 +539,31 @@
     .item-row.item-mao_de_obra,
     .item-row.item-embalagem,
     .item-row.item-lucro {
+        background-color: transparent !important;
+        border: none !important;
+        border-radius: 0 !important;
+        padding: 8px 0 !important;
+        margin-bottom: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+    }
+    .item-row.item-materia_prima::before,
+    .item-row.item-mao_de_obra::before,
+    .item-row.item-embalagem::before,
+    .item-row.item-lucro::before {
+        content: "" !important;
+        display: inline-block !important;
+        width: 12px !important;
+        height: 12px !important;
+        margin-right: 12px !important;
+        flex-shrink: 0 !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
-        border: none !important;
-        border-bottom: 1px solid #e2e8f0 !important;
-        border-radius: 0 !important;
-        padding: 8px 6px !important;
-        margin-bottom: 0 !important;
     }
-    .item-row.item-materia_prima { background-color: #f0f7ff !important; }
-    .item-row.item-mao_de_obra { background-color: #fffbeb !important; }
-    .item-row.item-embalagem { background-color: #faf5ff !important; }
-    .item-row.item-lucro { background-color: #f0fdf4 !important; }
+    .item-row.item-materia_prima::before { background-color: #0284c7 !important; }
+    .item-row.item-mao_de_obra::before { background-color: #d97706 !important; }
+    .item-row.item-embalagem::before { background-color: #7c3aed !important; }
+    .item-row.item-lucro::before { background-color: #10b981 !important; }
     .input-text-clean { border: none !important; text-align: left !important; padding: 0 !important; color: #000 !important; font-weight: 600 !important; min-width: auto !important; }
 
     .input-joined-wrapper { border: none !important; background: transparent !important; width: auto !important; display: flex !important; align-items: center !important; justify-content: flex-end !important; box-shadow: none !important; flex: none !important; }
