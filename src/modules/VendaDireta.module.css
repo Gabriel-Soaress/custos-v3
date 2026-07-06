@@ -534,15 +534,16 @@
     .sticky-panel { position: static !important; border: 1px solid #000 !important; padding: 15px !important; border-radius: 8px !important; page-break-inside: avoid !important; }
 
     .input-produto-lg { border: none !important; font-size: 2.2rem !important; font-weight: 900 !important; padding: 0 !important; color: #000 !important; margin-bottom: 15px !important; background: transparent !important; }
-    .item-row { border-bottom: 1px solid #e2e8f0 !important; padding: 8px 0 !important; flex-wrap: nowrap !important; }
+    .item-row { border-bottom: 1px solid #000000 !important; padding: 4px 0 !important; flex-wrap: nowrap !important; }
     .item-row.item-materia_prima,
     .item-row.item-mao_de_obra,
     .item-row.item-embalagem,
     .item-row.item-lucro {
         background-color: transparent !important;
         border: none !important;
+        border-bottom: 1px solid #000000 !important;
         border-radius: 0 !important;
-        padding: 8px 0 !important;
+        padding: 4px 0 !important;
         margin-bottom: 0 !important;
         display: flex !important;
         align-items: center !important;
